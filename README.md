@@ -2,7 +2,7 @@
 
 
 
-## Task 2 - Ковертер валют - vite, svelte, typescript
+## Task 2 - Конвертер валют - vite, svelte, typescript
 
 node -v v20.12.0
 
