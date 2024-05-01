@@ -1,47 +1,112 @@
 <script lang="ts">
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from '/vite.svg'
-  import Counter from './lib/Counter.svelte'
+	import { onMount } from "svelte";
+	import CurrencyRow from "./lib/CurrencyRow.svelte";
+	import { getCurrencyOptions, getExchangeRate } from "./api/exchangeApi";
+	import { formatNumber } from "./utils/format";
+	import LoadingWrapper from "./lib/LoadingWrapper.svelte";
+	import { validateInputValue } from "./utils/validation";
+
+	let currencyOptions: { code: string; name: string }[] = [];
+	let fromCurrency = "USD";
+	let toCurrency = "RUB";
+	let exchangeRate: number | undefined;
+	let fromAmount = 1;
+	let toAmount = 1;
+	let amountInFromCurrency = true;
+	let isLoading = true;
+
+	onMount(async () => {
+		const start = Date.now();
+
+		currencyOptions = await getCurrencyOptions();
+
+		const duration = Date.now() - start;
+		const delay = Math.max(1000 - duration, 0);
+
+		setTimeout(() => {
+			if (currencyOptions.length) {
+				isLoading = false;
+			}
+		}, delay);
+	});
+
+	$: if (fromCurrency && toCurrency) {
+		(async () => {
+			exchangeRate = await getExchangeRate(fromCurrency, toCurrency);
+		})();
+	}
+
+	$: if (exchangeRate) {
+		if (amountInFromCurrency) {
+			toAmount = formatNumber(fromAmount * exchangeRate);
+		} else {
+			fromAmount = formatNumber(toAmount / exchangeRate);
+		}
+	}
+
+	function handleFromAmountChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		
+		let value = target.value;
+		const validatedValue = validateInputValue(value);
+		target.value = validatedValue.toString();
+		
+		fromAmount = validatedValue;
+		amountInFromCurrency = true;
+	}
+
+	function handleToAmountChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+
+		const value = target.value;
+		const validatedValue = validateInputValue(value);
+		target.value = validatedValue.toString();
+
+		toAmount = validatedValue;
+		amountInFromCurrency = false;
+	}
+
+	function handleCurrencyChange(event: Event, isFromCurrency: boolean) {
+		const target = event.target as HTMLSelectElement;
+		const newCurrency = target.value;
+
+		if (isFromCurrency) {
+			fromCurrency = newCurrency;
+		} else {
+			toCurrency = newCurrency;
+		}
+	}
 </script>
 
-<main>
-  <div>
-    <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
-      <img src={viteLogo} class="logo" alt="Vite Logo" />
-    </a>
-    <a href="https://svelte.dev" target="_blank" rel="noreferrer">
-      <img src={svelteLogo} class="logo svelte" alt="Svelte Logo" />
-    </a>
-  </div>
-  <h1>Vite + Svelte</h1>
+<h1>Конвертер валют</h1>
 
-  <div class="card">
-    <Counter />
-  </div>
+<LoadingWrapper {isLoading}>
+	<CurrencyRow
+		{currencyOptions}
+		selectedCurrency={fromCurrency}
+		onChangeCurrency={(e) => handleCurrencyChange(e, true)}
+		onChangeAmount={handleFromAmountChange}
+		amount={fromAmount}
+	/>
 
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme" target="_blank" rel="noreferrer">SvelteKit</a>, the official Svelte app framework powered by Vite!
-  </p>
+	<div class="equals">=</div>
 
-  <p class="read-the-docs">
-    Click on the Vite and Svelte logos to learn more
-  </p>
-</main>
+	<CurrencyRow
+		{currencyOptions}
+		selectedCurrency={toCurrency}
+		onChangeCurrency={(e) => handleCurrencyChange(e, false)}
+		onChangeAmount={handleToAmountChange}
+		amount={toAmount}
+	/>
+</LoadingWrapper>
 
 <style>
-  .logo {
-    height: 6em;
-    padding: 1.5em;
-    will-change: filter;
-    transition: filter 300ms;
-  }
-  .logo:hover {
-    filter: drop-shadow(0 0 2em #646cffaa);
-  }
-  .logo.svelte:hover {
-    filter: drop-shadow(0 0 2em #ff3e00aa);
-  }
-  .read-the-docs {
-    color: #888;
-  }
+	.equals {
+		text-align: center;
+		font-size: 2em;
+		color: #4caf50;
+		padding: 20px;
+		font-weight: bold;
+		text-shadow: 1px 1px 2px #388e3c;
+	}
 </style>
