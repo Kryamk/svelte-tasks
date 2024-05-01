@@ -1,6 +1,23 @@
 import { API_KEY } from '../config.js';
 export const BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}`;
 const importantCurrencies = ["USD", "EUR", "RUB", "JPY"];
+let conversionRates: { [key: string]: number } = {};
+
+export async function fetchConversionRates(): Promise<void> {
+	try {
+		const response = await fetch(`${BASE_URL}/latest/USD`);
+
+		if (!response.ok) {
+			throw new Error(`Ошибка запроса: ${response.status}`);
+		}
+
+		const data = await response.json();
+		conversionRates = data.conversion_rates;
+	} catch (error) {
+		console.error("Ошибка при получении данных о конвертации:", error);
+	}
+}
+
 
 function sortCurrencyOptions(currencies: { code: string, name: string }[]): { code: string, name: string }[] {
 	const importantOptions = currencies.filter(item => importantCurrencies.includes(item.code));
@@ -30,15 +47,14 @@ export async function getCurrencyOptions(): Promise<{ code: string, name: string
 	}
 }
 
-export async function getExchangeRate(fromCurrency: string, toCurrency: string): Promise<number> {
-	try {
-		const response = await fetch(`${BASE_URL}/pair/${fromCurrency}/${toCurrency}`);
-		const data = await response.json();
+export function getExchangeRate(fromCurrency: string, toCurrency: string): number {
+	const fromRate = conversionRates[fromCurrency];
+	const toRate = conversionRates[toCurrency];
 
-		return data.conversion_rate;
-	} catch (error) {
-		console.error("Ошибка при получении обменного курса:", error);
+	if (!fromRate || !toRate) {
+		console.error("Не удается найти курс обмена для одной или обеих валют.");
 		return 0;
 	}
 
+	return toRate / fromRate;
 }

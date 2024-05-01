@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import CurrencyRow from "./lib/CurrencyRow.svelte";
-	import { getCurrencyOptions, getExchangeRate } from "./api/exchangeApi";
+	import { getCurrencyOptions, fetchConversionRates, getExchangeRate, } from "./api/exchangeApi";
 	import { formatNumber } from "./utils/format";
 	import LoadingWrapper from "./lib/LoadingWrapper.svelte";
 	import { validateInputValue } from "./utils/validation";
@@ -14,14 +14,16 @@
 	let toAmount = 1;
 	let amountInFromCurrency = true;
 	let isLoading = true;
+	let isRatesLoaded = false;
 
-	onMount(async () => {
+	onMount(async () => {		
 		const start = Date.now();
-
+		await fetchConversionRates();
 		currencyOptions = await getCurrencyOptions();
 
 		const duration = Date.now() - start;
 		const delay = Math.max(1000 - duration, 0);
+		isRatesLoaded = true;
 
 		setTimeout(() => {
 			if (currencyOptions.length) {
@@ -30,10 +32,8 @@
 		}, delay);
 	});
 
-	$: if (fromCurrency && toCurrency) {
-		(async () => {
-			exchangeRate = await getExchangeRate(fromCurrency, toCurrency);
-		})();
+	$: if (isRatesLoaded && fromCurrency && toCurrency) {
+		exchangeRate = getExchangeRate(fromCurrency, toCurrency);
 	}
 
 	$: if (exchangeRate) {
